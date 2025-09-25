@@ -6,6 +6,85 @@
 数営業日下落している銘柄で、下髭が出た銘柄を感知できるようにする
 最低出来高、移動平均線も表示したい。
 
+## アーキテクチャ
+
+- **フロントエンド**: React (TypeScript)
+- **バックエンド**: FastAPI (Python)
+- **データベース**: MySQL 8.0
+- **データ収集**: Python スクリプト
+- **インフラ**: Docker Compose
+
+## 実装済み機能
+
+### フロントエンド (React + TypeScript)
+
+- ✅ 銘柄コード入力フィールドと表示ボタン
+- ✅ 最大 50 件のチャート表示機能
+- ✅ ローカルストレージでの銘柄コード保持
+- ✅ チャート削除機能（× ボタン）
+- ✅ レスポンシブデザイン（グリッドレイアウト）
+- ✅ ローソク足チャート表示（Recharts 使用・MIT ライセンス）
+- ✅ 出来高チャート表示
+- ✅ 移動平均線表示（3 本・設定可能）
+- ✅ インタラクティブツールチップ
+- ✅ 移動平均線設定パネル
+
+### チャート機能詳細
+
+#### ローソク足チャート
+
+- 始値・高値・安値・終値の表示
+- 陽線・陰線の色分け表示
+- 日付軸での時系列表示
+- 価格軸での自動スケーリング
+
+#### 移動平均線
+
+- **3 本表示対応**: MA1, MA2, MA3
+- **初期設定**: 5 日線、25 日線、75 日線
+- **設定可能項目**:
+  - 各移動平均線の期間（1-200 日）
+  - 表示/非表示の切り替え
+  - 線の色設定
+- **リアルタイム更新**: 設定変更時に全チャートが即座に更新
+
+#### インタラクション機能
+
+- **ツールチップ**: マウスオーバーで詳細データ表示
+  - 日付、始値、高値、安値、終値
+  - 出来高
+  - 各移動平均線の値
+- **レスポンシブ**: 画面サイズに応じたチャートサイズ調整
+- **レジェンド**: 移動平均線の凡例表示
+
+### データ構造
+
+#### 株価データ（StockData）
+
+```typescript
+interface StockData {
+  date: string; // 日付
+  open: number; // 始値
+  high: number; // 高値
+  low: number; // 安値
+  close: number; // 終値
+  volume: number; // 出来高
+  ma1?: number; // 移動平均線1
+  ma2?: number; // 移動平均線2
+  ma3?: number; // 移動平均線3
+}
+```
+
+#### 移動平均線設定（MovingAverageSettings）
+
+```typescript
+interface MovingAverageSettings {
+  ma1: { period: number; enabled: boolean; color: string; name: string };
+  ma2: { period: number; enabled: boolean; color: string; name: string };
+  ma3: { period: number; enabled: boolean; color: string; name: string };
+}
+```
+
 ## 初期データ
 
 初期データを投入する方法は別途検討が必要だが、どこかのサイトからデータを拾って、日足、出来高をインポートしたい
@@ -33,3 +112,101 @@ TOP 画面は、銘柄コードの入力フィールドと、表示ボタン。
 
 python でも、php でも。
 DB は MySQL を使う。
+
+### データベース設計
+
+#### stocks テーブル
+
+```sql
+CREATE TABLE IF NOT EXISTS stocks (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    code VARCHAR(10) NOT NULL,    -- 銘柄コード
+    date DATE NOT NULL,           -- 日付
+    open FLOAT,                   -- 始値
+    high FLOAT,                   -- 高値
+    low FLOAT,                    -- 安値
+    close FLOAT,                  -- 終値
+    volume BIGINT                 -- 出来高
+);
+```
+
+### バックエンド API 設計
+
+#### チャート情報取得 API(一覧用)
+
+- **エンドポイント**: `GET /api/stocks/bulk`
+- **パラメータ**: `codes` (配列形式の銘柄コードリスト)
+- **用途**: TOP 画面ロード完了時に、ローカルストレージにある銘柄コードを送信し、該当銘柄の ohlc や出来高情報のコレクションを返却する
+
+#### チャート情報取得 API(個別用)
+
+- **エンドポイント**: `GET /api/stocks/{code}`
+- **パラメータ**: `code` (銘柄コード)
+- **用途**: TOP 画面で銘柄コードを入力し、「表示」押下時に銘柄コードを送信して、該当銘柄の ohlc や出来高情報を返却する
+
+**レスポンス形式**:
+
+```json
+{
+  "code": "1234",
+  "data": [
+    {
+      "date": "2025-09-25",
+      "open": 1000,
+      "high": 1050,
+      "low": 980,
+      "close": 1020,
+      "volume": 100000
+    }
+  ]
+}
+```
+
+## 開発・運用
+
+### 開発環境構築
+
+```bash
+# リポジトリクローン後
+cd chart
+
+# Docker環境起動
+docker-compose up
+
+# 各サービスのアクセス先
+# - フロントエンド: http://localhost:3000
+# - バックエンドAPI: http://localhost:8000
+# - MySQL: localhost:3306
+```
+
+### Docker 構成
+
+- **frontend**: React + TypeScript 開発サーバー
+- **backend**: FastAPI サーバー
+- **db**: MySQL 8.0（永続化ボリューム設定済み）
+- **data_collector**: データ収集用 Python スクリプト
+
+### 今後の実装予定
+
+#### 優先度：高
+
+- [ ] 実際の株価 API との連携
+- [ ] バックエンド API 実装
+- [ ] データ収集スクリプト実装
+- [ ] 下髭検出アルゴリズム
+- [ ] 最低出来高フィルター機能
+
+#### 優先度：中
+
+- [ ] チャート期間選択機能（1 ヶ月、3 ヶ月、1 年など）
+- [ ] 銘柄検索・サジェスト機能
+- [ ] チャート画像エクスポート機能
+- [ ] 移動平均線の動的本数対応
+- [ ] テクニカル指標追加（RSI、MACD 等）
+
+#### 優先度：低
+
+- [ ] ユーザー認証機能
+- [ ] お気に入り銘柄管理
+- [ ] アラート機能
+- [ ] パフォーマンス最適化
