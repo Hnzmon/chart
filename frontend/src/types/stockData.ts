@@ -37,31 +37,54 @@ export const generateSampleData = (
   maSettings: MovingAverageSettings = defaultMASettings
 ): StockData[] => {
   const data: StockData[] = [];
-  const basePrice = 1000 + Math.random() * 2000; // 基準価格
+
+  // 銘柄コードから固定シードを生成（リロード毎の変化を防ぐ）
+  const seed = stockCode
+    .split("")
+    .reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  let randomSeed = seed;
+  const seededRandom = () => {
+    randomSeed = (randomSeed * 9301 + 49297) % 233280;
+    return randomSeed / 233280;
+  };
+
+  const basePrice = 1000 + seededRandom() * 2000; // 基準価格
   let currentPrice = basePrice;
 
-  // 過去180日分のデータを生成
+  // 過去180日分のデータを生成（固定基準日を使用）
+  const baseDate = new Date("2024-12-01"); // 固定基準日
   for (let i = 179; i >= 0; i--) {
-    const date = new Date();
-    date.setDate(date.getDate() - i);
+    const date = new Date(baseDate);
+    date.setDate(baseDate.getDate() - i);
 
-    // 価格変動（ランダムウォーク）
-    const change = (Math.random() - 0.5) * 0.1; // -5%から+5%の変動
+    // 価格変動（シード化されたランダムウォーク）
+    const change = (seededRandom() - 0.5) * 0.08; // -4%から+4%の変動
     currentPrice = currentPrice * (1 + change);
 
-    // ローソク足データ生成
-    const high = currentPrice * (1 + Math.random() * 0.05); // 高値
-    const low = currentPrice * (1 - Math.random() * 0.05); // 安値
-    const open = low + Math.random() * (high - low); // 始値
-    const close = low + Math.random() * (high - low); // 終値
-    const volume = Math.floor(100000 + Math.random() * 500000); // 出来高
+    // 当日の高値・安値・始値・終値を生成
+    const dailyVolatility = 0.025; // 日中変動率
+    const open = currentPrice;
+    const volatilityRange = currentPrice * dailyVolatility;
+
+    const high = currentPrice + seededRandom() * volatilityRange;
+    const low = currentPrice - seededRandom() * volatilityRange;
+
+    // 終値は現在価格の変動後の値
+    const close = currentPrice;
+
+    // 始値と終値の関係を調整
+    const adjustedOpen = Math.min(Math.max(open, low), high);
+    const adjustedClose = Math.min(Math.max(close, low), high);
+
+    // 出来高（シード化されたランダム）
+    const volume = Math.floor(100000 + seededRandom() * 500000);
 
     data.push({
       date: date.toISOString().split("T")[0],
-      open: Math.round(open),
+      open: Math.round(adjustedOpen),
       high: Math.round(high),
       low: Math.round(low),
-      close: Math.round(close),
+      close: Math.round(adjustedClose),
       volume,
     });
   }
@@ -71,7 +94,7 @@ export const generateSampleData = (
 };
 
 // 移動平均線計算（3本対応）
-const calculateMovingAverages = (
+export const calculateMovingAverages = (
   data: StockData[],
   maSettings: MovingAverageSettings
 ): StockData[] => {

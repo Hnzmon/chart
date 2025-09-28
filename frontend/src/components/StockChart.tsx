@@ -10,12 +10,16 @@ import {
   Bar,
   ResponsiveContainer,
   ReferenceLine,
+  ReferenceArea,
+  Cell,
 } from "recharts";
+import { CustomCandlestick } from "./CustomCandlestick";
 import {
   StockData,
   generateSampleData,
   MovingAverageSettings,
   defaultMASettings,
+  calculateMovingAverages,
 } from "../types/stockData";
 
 interface StockChartProps {
@@ -23,45 +27,10 @@ interface StockChartProps {
   maSettings?: MovingAverageSettings;
 }
 
-// カスタムローソク足コンポーネント
-const CandlestickBar: React.FC<any> = (props) => {
-  const { payload, x, y, width, height } = props;
-  if (!payload) return null;
-
-  const { open, close, high, low } = payload;
-  const isPositive = close >= open;
-  const color = isPositive ? "#00C853" : "#FF1744";
-  const bodyHeight =
-    (Math.abs(close - open) * height) / (payload.high - payload.low);
-  const bodyY =
-    y +
-    ((Math.max(close, open) - payload.high) * height) /
-      (payload.high - payload.low);
-
-  return (
-    <g>
-      {/* 高値・安値の線 */}
-      <line
-        x1={x + width / 2}
-        y1={y}
-        x2={x + width / 2}
-        y2={y + height}
-        stroke={color}
-        strokeWidth={1}
-      />
-      {/* ローソク足の本体 */}
-      <rect
-        x={x + width * 0.2}
-        y={bodyY}
-        width={width * 0.6}
-        height={bodyHeight}
-        fill={isPositive ? color : color}
-        stroke={color}
-        strokeWidth={1}
-      />
-    </g>
-  );
-};
+interface StockChartProps {
+  stockCode: string;
+  maSettings?: MovingAverageSettings;
+}
 
 // カスタムツールチップ
 const CustomTooltip: React.FC<any> = ({ active, payload, label }) => {
@@ -104,19 +73,65 @@ export const StockChart: React.FC<StockChartProps> = ({
       setError("");
 
       try {
-        // 実際のAPIができるまではサンプルデータを使用
-        setTimeout(() => {
-          const sampleData = generateSampleData(stockCode, maSettings);
-          setData(sampleData);
-          setLoading(false);
-        }, 1000); // ローディング効果のための遅延
+        // バックエンドAPIの完全URLを指定
+        const apiUrl = `http://localhost:8000/api/stocks/${stockCode}`;
+        console.log(`APIリクエスト: ${apiUrl}`);
 
-        // 実際のAPI呼び出しは以下のようになる予定
-        // const response = await fetch(`/api/stocks/${stockCode}`);
-        // const result = await response.json();
-        // setData(result.data);
-      } catch (err) {
-        setError("データの取得に失敗しました");
+        const response = await fetch(apiUrl, {
+          method: "GET",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+        });
+
+        console.log("レスポンス状況:", response.status, response.statusText);
+        console.log(
+          "レスポンスヘッダー:",
+          Object.fromEntries(response.headers.entries())
+        );
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("エラーレスポンス:", errorText);
+          throw new Error(
+            `API Error: ${response.status} ${response.statusText} - ${errorText}`
+          );
+        }
+
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          const responseText = await response.text();
+          console.error("非JSON レスポンス:", responseText.substring(0, 200));
+          throw new Error(
+            `Expected JSON but got ${contentType}: ${responseText.substring(
+              0,
+              100
+            )}`
+          );
+        }
+
+        const result = await response.json();
+        console.log("APIレスポンス:", result); // APIレスポンスの構造を確認してデータを設定
+        if (result.data && Array.isArray(result.data)) {
+          // 移動平均線を計算
+          const dataWithMA = calculateMovingAverages(result.data, maSettings);
+          setData(dataWithMA);
+        } else {
+          throw new Error("Invalid API response format");
+        }
+
+        setLoading(false);
+      } catch (err: any) {
+        console.error("データ取得エラー:", err);
+        setError(
+          `データの取得に失敗しました: ${err.message || err.toString()}`
+        );
+
+        // フォールバック: エラー時はサンプルデータを使用
+        console.log("フォールバックとしてサンプルデータを使用します");
+        const sampleData = generateSampleData(stockCode, maSettings);
+        setData(sampleData);
         setLoading(false);
       }
     };
@@ -140,88 +155,83 @@ export const StockChart: React.FC<StockChartProps> = ({
     );
   }
 
-  // 価格データの範囲を計算（3本の移動平均線を含む）
-  const priceData = data
-    .map((d) => [d.high, d.low, d.ma1 || 0, d.ma2 || 0, d.ma3 || 0])
-    .flat()
-    .filter((v) => v > 0);
-  const minPrice = Math.min(...priceData) * 0.95;
-  const maxPrice = Math.max(...priceData) * 1.05;
-
-  // 出来高の最大値
-  const maxVolume = Math.max(...data.map((d) => d.volume));
-
   return (
     <div className="stock-chart">
-      {/* 価格チャート */}
+      {/* 価格チャート（ローソク足 + 移動平均線） */}
       <div className="price-chart">
-        <ResponsiveContainer width="100%" height={400}>
-          <ComposedChart
+        <div style={{ position: "relative" }}>
+          {/* カスタムローソク足チャート */}
+          <CustomCandlestick
             data={data}
-            margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+            width={800}
+            height={400}
+            margin={{ top: 20, right: 50, bottom: 50, left: 60 }}
+          />
+
+          {/* 移動平均線用のオーバーレイチャート */}
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              pointerEvents: "none",
+            }}
           >
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis
-              dataKey="date"
-              tick={{ fontSize: 12 }}
-              tickFormatter={(value) =>
-                new Date(value).toLocaleDateString("ja-JP", {
-                  month: "short",
-                  day: "numeric",
-                })
-              }
-            />
-            <YAxis
-              domain={[minPrice, maxPrice]}
-              tick={{ fontSize: 12 }}
-              tickFormatter={(value) =>
-                `¥${Math.round(value).toLocaleString()}`
-              }
-            />
-            <Tooltip content={<CustomTooltip />} />
-            <Legend />
+            <ResponsiveContainer width="100%" height={400}>
+              <ComposedChart
+                data={data}
+                margin={{ top: 20, right: 50, bottom: 50, left: 60 }}
+              >
+                <XAxis
+                  dataKey="date"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={false}
+                />
+                <YAxis
+                  domain={["dataMin - 50", "dataMax + 50"]}
+                  axisLine={false}
+                  tickLine={false}
+                  tick={false}
+                />
 
-            {/* ローソク足（バーで代用） */}
-            <Bar
-              dataKey="close"
-              fill="#8884d8"
-              shape={<CandlestickBar />}
-              name="価格"
-            />
-
-            {/* 移動平均線（3本） */}
-            {maSettings.ma1.enabled && (
-              <Line
-                type="monotone"
-                dataKey="ma1"
-                stroke={maSettings.ma1.color}
-                strokeWidth={2}
-                dot={false}
-                name={maSettings.ma1.name}
-              />
-            )}
-            {maSettings.ma2.enabled && (
-              <Line
-                type="monotone"
-                dataKey="ma2"
-                stroke={maSettings.ma2.color}
-                strokeWidth={2}
-                dot={false}
-                name={maSettings.ma2.name}
-              />
-            )}
-            {maSettings.ma3.enabled && (
-              <Line
-                type="monotone"
-                dataKey="ma3"
-                stroke={maSettings.ma3.color}
-                strokeWidth={2}
-                dot={false}
-                name={maSettings.ma3.name}
-              />
-            )}
-          </ComposedChart>
-        </ResponsiveContainer>
+                {/* 移動平均線のみ表示 */}
+                {maSettings.ma1.enabled && (
+                  <Line
+                    type="monotone"
+                    dataKey="ma1"
+                    stroke={maSettings.ma1.color}
+                    strokeWidth={2}
+                    dot={false}
+                    name={`MA${maSettings.ma1.period}`}
+                  />
+                )}
+                {maSettings.ma2.enabled && (
+                  <Line
+                    type="monotone"
+                    dataKey="ma2"
+                    stroke={maSettings.ma2.color}
+                    strokeWidth={2}
+                    dot={false}
+                    name={`MA${maSettings.ma2.period}`}
+                  />
+                )}
+                {maSettings.ma3.enabled && (
+                  <Line
+                    type="monotone"
+                    dataKey="ma3"
+                    stroke={maSettings.ma3.color}
+                    strokeWidth={2}
+                    dot={false}
+                    name={`MA${maSettings.ma3.period}`}
+                  />
+                )}
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
       </div>
 
       {/* 出来高チャート */}

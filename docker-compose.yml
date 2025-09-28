@@ -17,6 +17,9 @@ services:
       - "3000:3000"
     depends_on:
       - backend
+    volumes:
+      - "./frontend/src:/app/src"
+      - "./frontend/public:/app/public"
   db:
     image: mysql:8.0
     restart: always
