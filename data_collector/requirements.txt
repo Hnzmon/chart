@@ -2,3 +2,5 @@ requests
 mysql-connector-python
 yfinance
 pandas
+openpyxl
+xlrd
