@@ -156,17 +156,21 @@ export const StockChart: React.FC<StockChartProps> = ({
   }
 
   return (
-    <div className="stock-chart">
+    <div className="stock-chart" style={{ width: "100%" }}>
       {/* 価格チャート（ローソク足 + 移動平均線） */}
       <div className="price-chart">
-        <div style={{ position: "relative" }}>
+        <div style={{ position: "relative", width: "100%" }}>
           {/* カスタムローソク足チャート */}
-          <CustomCandlestick
-            data={data}
-            width={800}
-            height={400}
-            margin={{ top: 20, right: 50, bottom: 50, left: 60 }}
-          />
+          <ResponsiveContainer width="100%" height={400}>
+            <div style={{ width: "100%", height: "100%" }}>
+              <CustomCandlestick
+                data={data}
+                width={0} // ResponsiveContainerから動的に取得
+                height={400}
+                margin={{ top: 20, right: 30, bottom: 50, left: 60 }}
+              />
+            </div>
+          </ResponsiveContainer>
 
           {/* 移動平均線用のオーバーレイチャート */}
           <div
@@ -182,7 +186,7 @@ export const StockChart: React.FC<StockChartProps> = ({
             <ResponsiveContainer width="100%" height={400}>
               <ComposedChart
                 data={data}
-                margin={{ top: 20, right: 50, bottom: 50, left: 60 }}
+                margin={{ top: 20, right: 30, bottom: 50, left: 60 }}
               >
                 <XAxis
                   dataKey="date"
@@ -239,7 +243,7 @@ export const StockChart: React.FC<StockChartProps> = ({
         <ResponsiveContainer width="100%" height={150}>
           <ComposedChart
             data={data}
-            margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+            margin={{ top: 5, right: 30, bottom: 50, left: 60 }}
           >
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis

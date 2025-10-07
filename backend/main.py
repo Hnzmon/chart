@@ -41,6 +41,44 @@ def get_db_connection():
 def read_root():
     return {"message": "Stock Chart API is running"}
 
+@app.get("/api/stock-info/{stock_code}")
+def get_stock_info(stock_code: str):
+    """指定された銘柄の基本情報を取得"""
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
+        
+        # 銘柄コードから.Tなどのサフィックスを除去
+        clean_code = stock_code.replace('.T', '').replace('.JP', '')
+        
+        # 銘柄情報を取得
+        query = """
+        SELECT 
+            code,
+            name,
+            market,
+            sector
+        FROM stock_master 
+        WHERE code = %s
+        """
+        
+        cursor.execute(query, (clean_code,))
+        result = cursor.fetchone()
+        
+        cursor.close()
+        connection.close()
+        
+        if not result:
+            raise HTTPException(status_code=404, detail=f"銘柄コード {stock_code} の情報が見つかりません")
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"銘柄情報取得エラー: {e}")
+        raise HTTPException(status_code=500, detail=f"銘柄情報の取得に失敗しました: {str(e)}")
+
 @app.get("/api/stocks/{stock_code}")
 def get_stock_data(stock_code: str):
     """指定された銘柄の株価データを取得"""

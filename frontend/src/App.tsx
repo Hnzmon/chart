@@ -10,6 +10,13 @@ interface ChartComponentProps {
   maSettings: MovingAverageSettings;
 }
 
+interface StockInfo {
+  code: string;
+  name: string;
+  market: string;
+  sector: string;
+}
+
 const App: React.FC = () => {
   const [stockCode, setStockCode] = useState<string>("");
   const [displayedCharts, setDisplayedCharts] = useState<string[]>([]);
@@ -109,10 +116,38 @@ const ChartComponent: React.FC<ChartComponentProps> = ({
   onRemove,
   maSettings,
 }) => {
+  const [stockInfo, setStockInfo] = useState<StockInfo | null>(null);
+  const [infoLoading, setInfoLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    const fetchStockInfo = async () => {
+      try {
+        const response = await fetch(
+          `http://localhost:8000/api/stock-info/${stockCode}`
+        );
+        if (response.ok) {
+          const info = await response.json();
+          setStockInfo(info);
+        }
+      } catch (error) {
+        console.error("銘柄情報取得エラー:", error);
+      } finally {
+        setInfoLoading(false);
+      }
+    };
+
+    fetchStockInfo();
+  }, [stockCode]);
+
   return (
     <div className="chart-item">
       <div className="chart-header">
-        <h3>銘柄コード: {stockCode}</h3>
+        <h3>
+          銘柄コード: {stockCode}
+          {!infoLoading && stockInfo && (
+            <span className="stock-name"> - {stockInfo.name}</span>
+          )}
+        </h3>
         <button className="close-btn" onClick={onRemove}>
           ×
         </button>
