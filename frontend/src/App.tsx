@@ -43,12 +43,19 @@ const App: React.FC = () => {
       alert("最大50件まで表示できます");
       return;
     }
-    if (displayedCharts.includes(stockCode)) {
+
+    // 銘柄コードの正規化: 数字のみの場合は .T を自動追加
+    let normalizedCode = stockCode.trim();
+    if (/^\d+$/.test(normalizedCode)) {
+      normalizedCode = normalizedCode + ".T";
+    }
+
+    if (displayedCharts.includes(normalizedCode)) {
       alert("既に表示されています");
       return;
     }
 
-    const newCharts = [...displayedCharts, stockCode];
+    const newCharts = [...displayedCharts, normalizedCode];
     setDisplayedCharts(newCharts);
     saveToLocalStorage(newCharts);
     setStockCode("");
@@ -82,7 +89,7 @@ const App: React.FC = () => {
             type="text"
             value={stockCode}
             onChange={handleInputChange}
-            placeholder="銘柄コードを入力"
+            placeholder="銘柄コードを入力 (例: 1301 または 1301.T)"
             onKeyPress={handleKeyPress}
           />
           <button onClick={addChart}>表示</button>
