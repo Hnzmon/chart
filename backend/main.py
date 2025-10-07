@@ -22,8 +22,8 @@ DB_CONFIG = {
     'host': os.getenv('DB_HOST', 'localhost'),
     'port': int(os.getenv('DB_PORT', 3306)),
     'database': os.getenv('DB_NAME', 'chart'),
-    'user': os.getenv('DB_USER', 'root'),
-    'password': os.getenv('DB_PASSWORD', 'example'),
+    'user': os.getenv('DB_USER', 'stock_user'),
+    'password': os.getenv('DB_PASSWORD', 'stock_password'),
     'charset': 'utf8mb4',
     'collation': 'utf8mb4_unicode_ci'
 }

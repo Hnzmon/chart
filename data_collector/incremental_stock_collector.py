@@ -49,8 +49,8 @@ class IncrementalStockCollector:
         """データベース接続を取得"""
         return mysql.connector.connect(
             host=os.getenv('DB_HOST', 'localhost'),
-            user=os.getenv('DB_USER', 'root'),
-            password=os.getenv('DB_PASSWORD', 'example'),
+            user=os.getenv('DB_USER', 'stock_user'),
+            password=os.getenv('DB_PASSWORD', 'stock_password'),
             database=os.getenv('DB_NAME', 'chart'),
             charset='utf8mb4',
             collation='utf8mb4_unicode_ci'

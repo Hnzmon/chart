@@ -8,8 +8,8 @@ services:
       - db
     environment:
       - DB_HOST=db
-      - DB_USER=root
-      - DB_PASSWORD=example
+      - DB_USER=stock_user
+      - DB_PASSWORD=stock_password
       - DB_NAME=chart
   frontend:
     build: ./frontend
@@ -26,22 +26,27 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: example
       MYSQL_DATABASE: chart
+      MYSQL_USER: stock_user
+      MYSQL_PASSWORD: stock_password
     ports:
       - "3306:3306" # 外部から接続可能
     volumes:
       - ./mysql:/docker-entrypoint-initdb.d
       - ./mysql/my.cnf:/etc/mysql/conf.d/my.cnf # 文字エンコーディング設定
       - mysql-data:/var/lib/mysql # データ永続化
-    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --default-authentication-plugin=mysql_native_password --ssl=0
   data_collector:
     build: ./data_collector
     depends_on:
       - db
     environment:
       - DB_HOST=db
-      - DB_USER=root
-      - DB_PASSWORD=example
+      - DB_USER=stock_user
+      - DB_PASSWORD=stock_password
       - DB_NAME=chart
+    command: ["tail", "-f", "/dev/null"] # コンテナを起動状態に保持（手動実行用）
+    volumes:
+      - ./data_collector:/app
 
 volumes:
   mysql-data:

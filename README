@@ -12,9 +12,34 @@
 - **バックエンド**: FastAPI (Python)
 - **データベース**: MySQL 8.0
 - **データ収集**: Python スクリプト
-- **インフラ**: Docker Compose
+- **インフラ**: Doc#### データ収集の実行方法
 
-## 実装済み機能
+**推奨方法**: ホスト環境からの直接実行
+```bash
+# 標準モード（営業日のみ実行、インクリメンタル更新）
+./collect_stock_data.sh
+
+# 高速モード（待機時間短縮）
+./collect_stock_data.sh --fast
+
+# 低速モード（API制限厳格遵守）
+./collect_stock_data.sh --slow
+
+# テストモード（10銘柄のみ）
+./collect_stock_data.sh --test
+
+# ヘルプ表示
+./collect_stock_data.sh --help
+```
+
+**コンテナ内での実行**（Docker環境チェックをスキップ）:
+```bash
+# Python スクリプトを直接実行
+docker compose exec data_collector python incremental_stock_collector.py
+
+# 特定のオプション付きで実行
+docker compose exec data_collector python incremental_stock_collector.py --test-mode
+```実装済み機能
 
 ### 日本株データ収集システム (Python + yfinance)
 
@@ -182,7 +207,7 @@ CREATE TABLE IF NOT EXISTS stocks (
 cd chart
 
 # Docker環境起動
-docker-compose up
+docker compose up -d
 
 # 各サービスのアクセス先
 # - フロントエンド: http://localhost:3000
@@ -247,30 +272,55 @@ CREATE TABLE IF NOT EXISTS stocks (
 
 #### データ収集の実行方法
 
-**推奨方法**: メインスクリプト使用
+**推奨方法**: Docker Compose経由でのメインスクリプト使用
 ```bash
 # 標準モード（営業日のみ実行、インクリメンタル更新）
-./collect_stock_data.sh
+docker compose exec data_collector ./collect_stock_data.sh
 
 # 高速モード（待機時間短縮）
-./collect_stock_data.sh fast
+docker compose exec data_collector ./collect_stock_data.sh fast
 
 # 低速モード（API制限厳格遵守）
-./collect_stock_data.sh slow
+docker compose exec data_collector ./collect_stock_data.sh slow
 
 # テストモード（10銘柄のみ）
-./collect_stock_data.sh test
+docker compose exec data_collector ./collect_stock_data.sh test
 ```
 
-#### マスタデータ管理
-
-**株式マスタの初期インポート**:
+**マスタデータ管理**:
 ```bash
-# Excelファイルから株式マスタを一括インポート
-./import_stock_master.sh [Excel_file_path]
+# 株式マスタの初期インポート（Excelファイルから一括インポート）
+./import_stock_master.sh [mode]
 
-# 例：東証プライム全銘柄インポート
-./import_stock_master.sh data_j.xls
+# 例：東証プライム全銘柄インポート（スキップモード）
+./import_stock_master.sh skip
+
+# 例：既存データを更新
+./import_stock_master.sh update
+
+# 例：完全置換
+./import_stock_master.sh replace
+```
+
+**環境制御**:
+```bash
+# Docker環境起動
+docker compose up -d
+
+# Docker環境停止
+docker compose down
+
+# 特定サービスの再起動
+docker compose restart data_collector
+
+# ログ確認
+docker compose logs data_collector
+
+# データ収集の実行（ホスト環境から）
+./collect_stock_data.sh --test
+
+# マスタデータインポート（ホスト環境から）
+./import_stock_master.sh skip
 ```
 
 **対応ファイル形式**:
@@ -342,32 +392,36 @@ else:
 1. **営業日判定エラー**:
    ```bash
    # 祝日データを手動更新
-   python3 -c "from business_day_utils import BusinessDayCalculator; BusinessDayCalculator().update_holidays_csv()"
+   docker compose exec data_collector python3 -c "from business_day_utils import BusinessDayCalculator; BusinessDayCalculator().update_holidays_csv()"
    ```
 
 2. **DB接続エラー**:
    ```bash
    # MySQL接続確認
-   mysql -h localhost -u stock_user -p stock_data
+   docker compose exec db mysql -u stock_user -p stock_data
    ```
 
 3. **API制限エラー**:
    ```bash
    # 低速モードで実行
-   ./collect_stock_data.sh slow
+   docker compose exec data_collector ./collect_stock_data.sh slow
    ```
 
 4. **ログファイル確認**:
    ```bash
    # 最新のログを確認
-   tail -f logs/stock_collection_$(date +%Y%m%d).log
+   docker compose exec data_collector tail -f logs/stock_collection_$(date +%Y%m%d).log
+   
+   # Docker Composeログ確認
+   docker compose logs data_collector
    ```
 
 #### 中断・終了方法
 
 - **実行中の中断**: `Ctrl + C`
-- **プロセス強制終了**: `pkill -f incremental_stock_collector`
-- **ログファイル場所**: `logs/` ディレクトリ
+- **Docker内プロセス強制終了**: `docker compose exec data_collector pkill -f incremental_stock_collector`
+- **Docker環境全体停止**: `docker compose down`
+- **ログファイル場所**: Dockerボリューム内 `logs/` ディレクトリ
 
 ### 今後の実装予定
 

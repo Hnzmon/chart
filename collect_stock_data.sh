@@ -66,14 +66,14 @@ EOF
 check_status() {
     print_header "現在のデータ状況確認"
     
-    if ! docker ps | grep -q chart_db_1; then
+    if ! docker ps | grep -q chart-db-1; then
         print_error "MySQLコンテナが起動していません"
-        print_info "docker-compose up -d db を実行してください"
+        print_info "docker compose up -d db を実行してください"
         exit 1
     fi
     
     # データベース統計取得
-    docker exec chart_db_1 mysql -u root -pexample -D chart -e "
+    docker exec chart-db-1 mysql -u stock_user -pstock_password -D chart -e "
         SELECT 
             COUNT(DISTINCT symbol) as '銘柄数',
             COUNT(*) as '総レコード数',
@@ -171,11 +171,11 @@ check_docker_environment() {
     fi
     
     # MySQLコンテナの確認
-    if ! docker ps | grep -q chart_db_1; then
+    if ! docker ps | grep -q chart-db-1; then
         print_warning "MySQLコンテナが起動していません"
         print_info "MySQLコンテナを起動中..."
         
-        if docker-compose up -d db; then
+        if docker compose up -d db; then
             print_success "MySQLコンテナを起動しました"
             print_info "データベース初期化のため5秒待機..."
             sleep 5

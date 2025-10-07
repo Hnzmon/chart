@@ -5,6 +5,26 @@
 
 MODE=${1:-skip}  # 第1引数がなければ'skip'をデフォルトに
 
+# ヘルプ表示
+if [[ "$MODE" == "--help" || "$MODE" == "-h" ]]; then
+    echo "東証プライム銘柄マスター投入スクリプト"
+    echo ""
+    echo "使用方法:"
+    echo "  ./import_stock_master.sh [mode]"
+    echo ""
+    echo "モード:"
+    echo "  skip     既存データがあればスキップ、新規のみ追加（デフォルト）"
+    echo "  update   既存データがあれば更新、なければ追加"
+    echo "  replace  既存データを完全に置き換え"
+    echo ""
+    echo "例:"
+    echo "  ./import_stock_master.sh           # スキップモード"
+    echo "  ./import_stock_master.sh skip      # スキップモード"
+    echo "  ./import_stock_master.sh update    # 更新モード"
+    echo "  ./import_stock_master.sh replace   # 置換モード"
+    exit 0
+fi
+
 echo "=== 東証プライム銘柄マスター投入開始（モード: $MODE） ==="
 
 # モードの説明
@@ -26,14 +46,14 @@ case $MODE in
 esac
 
 # 銘柄マスター投入を実行
-docker-compose run --rm data_collector python stock_master_importer.py $MODE
+docker compose exec data_collector python stock_master_importer.py $MODE
 
 echo "=== 銘柄マスター投入完了 ==="
 
 # 投入されたデータの概要を表示
 echo ""
 echo "=== 投入データ概要 ==="
-docker exec -it chart_db_1 mysql -u root -pexample chart -e "
+docker compose exec db mysql -u stock_user -pstock_password chart -e "
 SELECT 
     COUNT(*) as total_stocks,
     COUNT(DISTINCT sector) as sectors,
@@ -44,7 +64,7 @@ FROM stock_master;
 
 echo ""
 echo "=== 業種別銘柄数 ==="
-docker exec -it chart_db_1 mysql -u root -pexample chart -e "
+docker compose exec db mysql -u stock_user -pstock_password chart -e "
 SELECT 
     sector,
     COUNT(*) as count
@@ -57,7 +77,7 @@ LIMIT 10;
 
 echo ""
 echo "=== サンプル銘柄（先頭10件） ==="
-docker exec -it chart_db_1 mysql -u root -pexample chart -e "
+docker compose exec db mysql -u stock_user -pstock_password chart -e "
 SELECT 
     code,
     symbol,
