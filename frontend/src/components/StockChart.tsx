@@ -12,6 +12,7 @@ import {
   ReferenceLine,
   ReferenceArea,
   Cell,
+  ErrorBar,
 } from "recharts";
 import { CustomCandlestick } from "./CustomCandlestick";
 import {
@@ -180,7 +181,6 @@ export const StockChart: React.FC<StockChartProps> = ({
               left: 0,
               width: "100%",
               height: "100%",
-              pointerEvents: "none",
             }}
           >
             <ResponsiveContainer width="100%" height={400}>
@@ -200,6 +200,9 @@ export const StockChart: React.FC<StockChartProps> = ({
                   tickLine={false}
                   tick={false}
                 />
+                
+                {/* ツールチップを追加 */}
+                <Tooltip content={<CustomTooltip />} />
 
                 {/* 移動平均線のみ表示 */}
                 {maSettings.ma1.enabled && (
@@ -236,14 +239,12 @@ export const StockChart: React.FC<StockChartProps> = ({
             </ResponsiveContainer>
           </div>
         </div>
-      </div>
-
-      {/* 出来高チャート */}
+      </div>      {/* 出来高チャート */}
       <div className="volume-chart">
         <ResponsiveContainer width="100%" height={150}>
           <ComposedChart
             data={data}
-            margin={{ top: 5, right: 30, bottom: 50, left: 60 }}
+            margin={{ top: 20, right: 30, bottom: 50, left: 60 }}
           >
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis
