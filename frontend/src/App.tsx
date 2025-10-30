@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { StockChart } from "./components/StockChart";
 import { MASettingsPanel } from "./components/MASettingsPanel";
+import { HammerSignalsPage } from "./components/HammerSignalsPage";
 import { MovingAverageSettings, defaultMASettings } from "./types/stockData";
 import "./App.css";
 
@@ -17,7 +18,10 @@ interface StockInfo {
   sector: string;
 }
 
+type PageType = "main" | "hammer-signals";
+
 const App: React.FC = () => {
+  const [currentPage, setCurrentPage] = useState<PageType>("main");
   const [stockCode, setStockCode] = useState<string>("");
   const [displayedCharts, setDisplayedCharts] = useState<string[]>([]);
   const [maSettings, setMaSettings] =
@@ -80,10 +84,47 @@ const App: React.FC = () => {
     setStockCode(e.target.value);
   };
 
+  // ページ遷移ハンドラー
+  const goToHammerSignals = () => {
+    setCurrentPage("hammer-signals");
+  };
+
+  const goToMain = () => {
+    setCurrentPage("main");
+  };
+
+  // ハンマーシグナル画面を表示
+  if (currentPage === "hammer-signals") {
+    return <HammerSignalsPage onBack={goToMain} />;
+  }
+
   return (
     <div className="app">
       <div className="header">
-        <h1>株価チャートアプリ</h1>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "20px",
+          }}
+        >
+          <h1>株価チャートアプリ</h1>
+          <button
+            onClick={goToHammerSignals}
+            style={{
+              padding: "8px 16px",
+              backgroundColor: "#FF6B35",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+              fontSize: "14px",
+            }}
+          >
+            🔨 ハンマーシグナル
+          </button>
+        </div>
         <div className="input-section">
           <input
             type="text"

@@ -18,6 +18,38 @@ export interface MovingAverageSettings {
   ma3: { period: number; enabled: boolean; color: string; name: string };
 }
 
+// ハンマーシグナルの型定義
+export interface HammerSignal {
+  symbol: string;
+  signal_date: string;
+  decline_days: number;
+  total_decline_pct: number;
+  lower_shadow_ratio: number;
+  detected_at: string;
+  name: string;
+  market: string;
+  sector: string;
+}
+
+// ハンマーシグナルAPIレスポンスの型
+export interface HammerSignalsResponse {
+  signals: HammerSignal[];
+  count: number;
+  latest_date: string | null;
+}
+
+// ハンマーシグナルチャートデータの型
+export interface HammerChartData {
+  symbol: string;
+  stock_info: {
+    name: string;
+    market: string;
+    sector: string;
+  };
+  data: StockData[];
+  count: number;
+}
+
 // デフォルト移動平均線設定
 export const defaultMASettings: MovingAverageSettings = {
   ma1: { period: 5, enabled: true, color: "#FF6B35", name: "MA5" },

@@ -171,3 +171,104 @@ def list_available_stocks():
     except Exception as e:
         print(f"銘柄一覧取得エラー: {e}")
         raise HTTPException(status_code=500, detail=f"銘柄一覧の取得に失敗しました: {str(e)}")
+
+@app.get("/api/hammer-signals")
+def get_hammer_signals():
+    """最新のハンマーシグナル検出結果を取得"""
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
+        
+        # 最新のsignal_dateを取得
+        cursor.execute("SELECT MAX(signal_date) as latest_date FROM signal_detections")
+        latest_result = cursor.fetchone()
+        latest_date = latest_result['latest_date']
+        
+        if not latest_date:
+            return {"signals": [], "count": 0, "latest_date": None}
+        
+        # 最新日のシグナルを取得
+        query = """
+        SELECT 
+            sd.symbol,
+            sd.signal_date,
+            sd.decline_days,
+            sd.total_decline_pct,
+            sd.lower_shadow_ratio,
+            sd.detection_date,
+            sm.name,
+            sm.market,
+            sm.sector
+        FROM signal_detections sd
+        LEFT JOIN stock_master sm ON REPLACE(sd.symbol, '.T', '') = sm.code
+        WHERE sd.signal_date = %s
+        ORDER BY sd.symbol
+        """
+        
+        cursor.execute(query, (latest_date,))
+        results = cursor.fetchall()
+        
+        cursor.close()
+        connection.close()
+        
+        return {
+            "signals": results,
+            "count": len(results),
+            "latest_date": latest_date.isoformat() if latest_date else None
+        }
+        
+    except Exception as e:
+        print(f"ハンマーシグナル取得エラー: {e}")
+        raise HTTPException(status_code=500, detail=f"ハンマーシグナルの取得に失敗しました: {str(e)}")
+
+@app.get("/api/hammer-signals/chart-data/{symbol}")
+def get_hammer_signal_chart_data(symbol: str):
+    """ハンマーシグナル銘柄の1年分チャートデータを取得"""
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
+        
+        # 1年分のデータを取得（今日から365日前まで）
+        query = """
+        SELECT 
+            date,
+            open,
+            high,
+            low,
+            close,
+            volume
+        FROM stocks 
+        WHERE symbol = %s 
+        AND date >= DATE_SUB(CURDATE(), INTERVAL 1 YEAR)
+        ORDER BY date ASC
+        """
+        
+        cursor.execute(query, (symbol,))
+        results = cursor.fetchall()
+        
+        # 銘柄情報も取得
+        info_query = """
+        SELECT name, market, sector 
+        FROM stock_master 
+        WHERE code = %s
+        """
+        cursor.execute(info_query, (symbol.replace('.T', ''),))
+        stock_info = cursor.fetchone()
+        
+        cursor.close()
+        connection.close()
+        
+        # 日付をISO形式に変換
+        for row in results:
+            row['date'] = row['date'].isoformat()
+        
+        return {
+            "symbol": symbol,
+            "stock_info": stock_info,
+            "data": results,
+            "count": len(results)
+        }
+        
+    except Exception as e:
+        print(f"チャートデータ取得エラー: {e}")
+        raise HTTPException(status_code=500, detail=f"チャートデータの取得に失敗しました: {str(e)}")

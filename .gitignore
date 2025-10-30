@@ -1,2 +1,4 @@
 node_modules
 __pycache__
+hammer_signal_detection.log
+server.log
