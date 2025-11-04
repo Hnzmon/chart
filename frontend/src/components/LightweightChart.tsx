@@ -173,7 +173,6 @@ export const LightweightChart: React.FC<LightweightChartProps> = ({
       chart.subscribeCrosshairMove((param: any) => {
         if (param.time) {
           // カスタムツールチップロジックをここに追加できます
-          console.log("Crosshair moved:", param);
         }
       });
     } catch (error) {

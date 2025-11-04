@@ -221,23 +221,75 @@ export const HammerSignalsPage: React.FC<HammerSignalsPageProps> = ({
                 </tr>
               </thead>
               <tbody>
-                {signals.map((signal, index) => (
-                  <tr key={`${signal.symbol}-${signal.signal_date}`}>
-                    <td>{signal.symbol.replace(".T", "")}</td>
-                    <td>{signal.name || "N/A"}</td>
-                    <td>{signal.market || "N/A"}</td>
-                    <td className="center">
-                      {new Date(signal.signal_date).toLocaleDateString("ja-JP")}
-                    </td>
-                    <td className="center">{signal.decline_days}日</td>
-                    <td className="center">
-                      {signal.total_decline_pct.toFixed(2)}%
-                    </td>
-                    <td className="center">
-                      {signal.lower_shadow_ratio.toFixed(1)}%
-                    </td>
-                  </tr>
-                ))}
+                {signals.map((signal, index) => {
+                  const stockCode = signal.symbol.replace(".T", "");
+                  const kabutanUrl = `https://kabutan.jp/stock/?code=${stockCode}`;
+
+                  return (
+                    <tr
+                      key={`${signal.symbol}-${signal.signal_date}`}
+                      className="clickable-table-row"
+                      style={{ cursor: "pointer" }}
+                      title="株探で詳細を見る"
+                    >
+                      <td
+                        onClick={() => {
+                          window.open(kabutanUrl, "_blank");
+                        }}
+                      >
+                        {stockCode}
+                      </td>
+                      <td
+                        onClick={() => {
+                          window.open(kabutanUrl, "_blank");
+                        }}
+                      >
+                        {signal.name || "N/A"}
+                      </td>
+                      <td
+                        onClick={() => {
+                          window.open(kabutanUrl, "_blank");
+                        }}
+                      >
+                        {signal.market || "N/A"}
+                      </td>
+                      <td
+                        className="center"
+                        onClick={() => {
+                          window.open(kabutanUrl, "_blank");
+                        }}
+                      >
+                        {new Date(signal.signal_date).toLocaleDateString(
+                          "ja-JP"
+                        )}
+                      </td>
+                      <td
+                        className="center"
+                        onClick={() => {
+                          window.open(kabutanUrl, "_blank");
+                        }}
+                      >
+                        {signal.decline_days}日
+                      </td>
+                      <td
+                        className="center"
+                        onClick={() => {
+                          window.open(kabutanUrl, "_blank");
+                        }}
+                      >
+                        {signal.total_decline_pct.toFixed(2)}%
+                      </td>
+                      <td
+                        className="center"
+                        onClick={() => {
+                          window.open(kabutanUrl, "_blank");
+                        }}
+                      >
+                        {signal.lower_shadow_ratio.toFixed(1)}%
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -248,11 +300,20 @@ export const HammerSignalsPage: React.FC<HammerSignalsPageProps> = ({
             {signals.map((signal) => {
               const isLoading = loadingCharts.has(signal.symbol);
               const data = chartData[signal.symbol];
+              const stockCode = signal.symbol.replace(".T", "");
+              const kabutanUrl = `https://kabutan.jp/stock/?code=${stockCode}`;
 
               return (
                 <div key={signal.symbol} className="hammer-chart-item">
-                  <h3 className="hammer-chart-header">
-                    {signal.symbol.replace(".T", "")} - {signal.name || "N/A"}
+                  <h3
+                    className="hammer-chart-header clickable-stock-header"
+                    onClick={() => {
+                      window.open(kabutanUrl, "_blank");
+                    }}
+                    style={{ cursor: "pointer" }}
+                    title="株探で詳細を見る"
+                  >
+                    {stockCode} - {signal.name || "N/A"}
                     <span className="hammer-chart-subheader">
                       ({signal.market}) シグナル日:{" "}
                       {new Date(signal.signal_date).toLocaleDateString("ja-JP")}

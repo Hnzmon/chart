@@ -409,3 +409,25 @@
 .back-button:hover {
   background-color: #5a6268;
 }
+
+/* クリック可能な要素のスタイル */
+.clickable-stock-header {
+  transition: all 0.2s ease;
+}
+
+.clickable-stock-header:hover {
+  color: #007bff !important;
+  text-decoration: underline !important;
+}
+
+.clickable-table-row {
+  transition: background-color 0.2s ease;
+}
+
+.clickable-table-row:hover {
+  background-color: #f8f9fa !important;
+}
+
+.clickable-table-row:active {
+  background-color: #e9ecef !important;
+}

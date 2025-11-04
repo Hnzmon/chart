@@ -29,7 +29,6 @@ export const StockChart: React.FC<StockChartProps> = ({
       try {
         // バックエンドAPIの完全URLを指定
         const apiUrl = `http://localhost:8000/api/stocks/${stockCode}`;
-        console.log(`APIリクエスト: ${apiUrl}`);
 
         const response = await fetch(apiUrl, {
           method: "GET",
@@ -38,12 +37,6 @@ export const StockChart: React.FC<StockChartProps> = ({
             "Content-Type": "application/json",
           },
         });
-
-        console.log("レスポンス状況:", response.status, response.statusText);
-        console.log(
-          "レスポンスヘッダー:",
-          Object.fromEntries(response.headers.entries())
-        );
 
         if (!response.ok) {
           const errorText = await response.text();
@@ -66,7 +59,6 @@ export const StockChart: React.FC<StockChartProps> = ({
         }
 
         const result = await response.json();
-        console.log("APIレスポンス:", result); // APIレスポンスの構造を確認してデータを設定
         if (result.data && Array.isArray(result.data)) {
           // 移動平均線を計算
           const dataWithMA = calculateMovingAverages(result.data, maSettings);

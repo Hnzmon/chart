@@ -190,7 +190,16 @@ const ChartComponent: React.FC<ChartComponentProps> = ({
   return (
     <div className="chart-item">
       <div className="chart-header">
-        <h3>
+        <h3
+          className="clickable-stock-header"
+          onClick={() => {
+            const stockCodeOnly = stockCode.replace(".T", "");
+            const kabutanUrl = `https://kabutan.jp/stock/?code=${stockCodeOnly}`;
+            window.open(kabutanUrl, "_blank");
+          }}
+          style={{ cursor: "pointer" }}
+          title="株探で詳細を見る"
+        >
           銘柄コード: {stockCode.replace(".T", "")}
           {!infoLoading && stockInfo && (
             <span className="stock-name"> - {stockInfo.name}</span>
