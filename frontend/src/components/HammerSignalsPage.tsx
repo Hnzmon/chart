@@ -20,7 +20,13 @@ export interface HammerSignal {
 export interface HammerSignalsResponse {
   signals: HammerSignal[];
   count: number;
-  latest_date: string | null;
+  target_date: string | null;
+}
+
+// ハンマーシグナル日付一覧APIレスポンスの型
+export interface HammerSignalDatesResponse {
+  dates: string[];
+  count: number;
 }
 
 interface HammerSignalsPageProps {
@@ -31,7 +37,8 @@ export const HammerSignalsPage: React.FC<HammerSignalsPageProps> = ({
   onBack,
 }) => {
   const [signals, setSignals] = useState<HammerSignal[]>([]);
-  const [latestDate, setLatestDate] = useState<string | null>(null);
+  const [availableDates, setAvailableDates] = useState<string[]>([]);
+  const [selectedDate, setSelectedDate] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
   const [chartData, setChartData] = useState<Record<string, HammerChartData>>(
@@ -39,21 +46,53 @@ export const HammerSignalsPage: React.FC<HammerSignalsPageProps> = ({
   );
   const [loadingCharts, setLoadingCharts] = useState<Set<string>>(new Set());
 
-  // ハンマーシグナル一覧を取得
+  // 初期表示：日付一覧を取得し、最新日のシグナルを表示
   useEffect(() => {
-    fetchHammerSignals();
+    fetchAvailableDates();
   }, []);
 
-  const fetchHammerSignals = async () => {
+  // 選択された日付のシグナルを取得
+  useEffect(() => {
+    if (selectedDate) {
+      fetchHammerSignals(selectedDate);
+    }
+  }, [selectedDate]);
+
+  const fetchAvailableDates = async () => {
     try {
       setLoading(true);
-      const response = await fetch("http://localhost:8000/api/hammer-signals");
+      const response = await fetch(
+        "http://localhost:8000/api/hammer-signals/dates"
+      );
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data: HammerSignalDatesResponse = await response.json();
+      setAvailableDates(data.dates);
+
+      // 最新日を選択
+      if (data.dates.length > 0) {
+        setSelectedDate(data.dates[0]);
+      }
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "日付データの取得に失敗しました"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchHammerSignals = async (date: string) => {
+    try {
+      const response = await fetch(
+        `http://localhost:8000/api/hammer-signals?date=${date}`
+      );
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data: HammerSignalsResponse = await response.json();
       setSignals(data.signals);
-      setLatestDate(data.latest_date);
 
       // 各銘柄のチャートデータを取得
       if (data.signals.length > 0) {
@@ -63,8 +102,6 @@ export const HammerSignalsPage: React.FC<HammerSignalsPageProps> = ({
       setError(
         err instanceof Error ? err.message : "データの取得に失敗しました"
       );
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -130,17 +167,32 @@ export const HammerSignalsPage: React.FC<HammerSignalsPageProps> = ({
         <button onClick={onBack} className="back-button">
           ← TOPに戻る
         </button>
-        <h1>ハンマーシグナル検出結果</h1>
-        {latestDate && (
-          <span className="hammer-signals-date">
-            検出日: {new Date(latestDate).toLocaleDateString("ja-JP")}
-          </span>
+        {availableDates.length > 0 && (
+          <select
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            style={{
+              padding: "8px 12px",
+              marginLeft: "20px",
+              border: "1px solid #ddd",
+              borderRadius: "4px",
+              fontSize: "14px",
+            }}
+          >
+            {availableDates.map((date) => (
+              <option key={date} value={date}>
+                {new Date(date).toLocaleDateString("ja-JP")}
+              </option>
+            ))}
+          </select>
         )}
       </div>
 
+      <h1 style={{ marginBottom: "20px" }}>ハンマーシグナル検出結果</h1>
+
       {signals.length === 0 ? (
         <div className="hammer-signals-empty">
-          <h3>ハンマーシグナルが見つかりませんでした</h3>
+          <h3>選択された日付にハンマーシグナルが見つかりませんでした</h3>
           <p>
             4営業日以上の連続下落後のハンマーパターンに該当する銘柄がありません。
           </p>
@@ -148,7 +200,10 @@ export const HammerSignalsPage: React.FC<HammerSignalsPageProps> = ({
       ) : (
         <div>
           <div className="hammer-signals-summary">
-            <strong>{signals.length}件</strong>のハンマーシグナルを検出しました
+            検出日:{" "}
+            {selectedDate && new Date(selectedDate).toLocaleDateString("ja-JP")}
+            （<strong>{signals.length}件</strong>
+            のハンマーシグナルを検出しました）
           </div>
 
           {/* シグナル一覧テーブル */}
@@ -168,7 +223,7 @@ export const HammerSignalsPage: React.FC<HammerSignalsPageProps> = ({
               <tbody>
                 {signals.map((signal, index) => (
                   <tr key={`${signal.symbol}-${signal.signal_date}`}>
-                    <td>{signal.symbol}</td>
+                    <td>{signal.symbol.replace(".T", "")}</td>
                     <td>{signal.name || "N/A"}</td>
                     <td>{signal.market || "N/A"}</td>
                     <td className="center">
@@ -197,7 +252,7 @@ export const HammerSignalsPage: React.FC<HammerSignalsPageProps> = ({
               return (
                 <div key={signal.symbol} className="hammer-chart-item">
                   <h3 className="hammer-chart-header">
-                    {signal.symbol} - {signal.name || "N/A"}
+                    {signal.symbol.replace(".T", "")} - {signal.name || "N/A"}
                     <span className="hammer-chart-subheader">
                       ({signal.market}) シグナル日:{" "}
                       {new Date(signal.signal_date).toLocaleDateString("ja-JP")}

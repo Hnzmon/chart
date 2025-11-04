@@ -191,7 +191,7 @@ const ChartComponent: React.FC<ChartComponentProps> = ({
     <div className="chart-item">
       <div className="chart-header">
         <h3>
-          銘柄コード: {stockCode}
+          銘柄コード: {stockCode.replace(".T", "")}
           {!infoLoading && stockInfo && (
             <span className="stock-name"> - {stockInfo.name}</span>
           )}

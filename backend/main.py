@@ -1,10 +1,10 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 import mysql.connector
 from mysql.connector import Error
 import os
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 app = FastAPI()
 
@@ -25,7 +25,9 @@ DB_CONFIG = {
     'user': os.getenv('DB_USER', 'stock_user'),
     'password': os.getenv('DB_PASSWORD', 'stock_password'),
     'charset': 'utf8mb4',
-    'collation': 'utf8mb4_unicode_ci'
+    'collation': 'utf8mb4_unicode_ci',
+    'use_unicode': True,
+    'autocommit': True
 }
 
 def get_db_connection():
@@ -40,6 +42,16 @@ def get_db_connection():
 @app.get("/")
 def read_root():
     return {"message": "Stock Chart API is running"}
+
+@app.get("/api/test-date")
+def test_date(date: Optional[str] = Query(None)):
+    """dateパラメータのテスト用エンドポイント"""
+    return {
+        "received_date": date,
+        "date_type": str(type(date)),
+        "is_string": isinstance(date, str),
+        "is_none": date is None
+    }
 
 @app.get("/api/stock-info/{stock_code}")
 def get_stock_info(stock_code: str):
@@ -172,20 +184,62 @@ def list_available_stocks():
         print(f"銘柄一覧取得エラー: {e}")
         raise HTTPException(status_code=500, detail=f"銘柄一覧の取得に失敗しました: {str(e)}")
 
-@app.get("/api/hammer-signals")
-def get_hammer_signals():
-    """最新のハンマーシグナル検出結果を取得"""
+@app.get("/api/hammer-signals/dates")
+def get_hammer_signal_dates():
+    """ハンマーシグナルが存在する日付一覧を取得（新しい順）"""
     try:
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
         
-        # 最新のsignal_dateを取得
-        cursor.execute("SELECT MAX(signal_date) as latest_date FROM signal_detections")
-        latest_result = cursor.fetchone()
-        latest_date = latest_result['latest_date']
+        query = """
+        SELECT DISTINCT signal_date 
+        FROM signal_detections 
+        ORDER BY signal_date DESC
+        """
         
-        if not latest_date:
-            return {"signals": [], "count": 0, "latest_date": None}
+        cursor.execute(query)
+        results = cursor.fetchall()
+        
+        cursor.close()
+        connection.close()
+        
+        # 日付を適切な文字列形式に変換
+        dates = []
+        for row in results:
+            date_value = row['signal_date']
+            if isinstance(date_value, str):
+                dates.append(date_value)
+            elif hasattr(date_value, 'strftime'):
+                dates.append(date_value.strftime('%Y-%m-%d'))
+            else:
+                dates.append(str(date_value))
+        
+        return {
+            "dates": dates,
+            "count": len(dates)
+        }
+        
+    except Exception as e:
+        print(f"ハンマーシグナル日付取得エラー: {e}")
+        raise HTTPException(status_code=500, detail=f"ハンマーシグナル日付の取得に失敗しました: {str(e)}")
+
+@app.get("/api/hammer-signals")
+def get_hammer_signals(date: Optional[str] = Query(None)):
+    """指定日のハンマーシグナル検出結果を取得（dateが未指定の場合は最新日）"""
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
+        
+        # 指定された日付または最新日を取得
+        if date:
+            target_date = date
+        else:
+            cursor.execute("SELECT MAX(signal_date) as latest_date FROM signal_detections")
+            latest_result = cursor.fetchone()
+            target_date = latest_result['latest_date']
+        
+        if not target_date:
+            return {"signals": [], "count": 0, "target_date": None}
         
         # 最新日のシグナルを取得
         query = """
@@ -205,16 +259,35 @@ def get_hammer_signals():
         ORDER BY sd.symbol
         """
         
-        cursor.execute(query, (latest_date,))
+        cursor.execute(query, (target_date,))
         results = cursor.fetchall()
         
         cursor.close()
         connection.close()
         
+        # 結果セットの全ての値を適切な型に変換（特に日付フィールド）
+        for result in results:
+            for key, value in result.items():
+                if value is None:
+                    continue
+                elif key in ['signal_date', 'detection_date']:
+                    if hasattr(value, 'strftime'):
+                        result[key] = value.strftime('%Y-%m-%d' if key == 'signal_date' else '%Y-%m-%d %H:%M:%S')
+                    else:
+                        result[key] = str(value)
+        
+        # target_dateを適切な文字列形式で返す
+        if isinstance(target_date, str):
+            target_date_str = target_date
+        elif hasattr(target_date, 'strftime'):
+            target_date_str = target_date.strftime('%Y-%m-%d')
+        else:
+            target_date_str = str(target_date) if target_date else None
+        
         return {
             "signals": results,
             "count": len(results),
-            "latest_date": latest_date.isoformat() if latest_date else None
+            "target_date": target_date_str
         }
         
     except Exception as e:
@@ -258,9 +331,15 @@ def get_hammer_signal_chart_data(symbol: str):
         cursor.close()
         connection.close()
         
-        # 日付をISO形式に変換
+        # 日付を適切な文字列形式に変換
         for row in results:
-            row['date'] = row['date'].isoformat()
+            date_value = row['date']
+            if isinstance(date_value, str):
+                row['date'] = date_value
+            elif hasattr(date_value, 'strftime'):
+                row['date'] = date_value.strftime('%Y-%m-%d')
+            else:
+                row['date'] = str(date_value)
         
         return {
             "symbol": symbol,
